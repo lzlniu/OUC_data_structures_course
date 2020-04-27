@@ -7,7 +7,7 @@
 #include <string.h>
 #define OK 1
 #define ERROR 0
-#define AUTOLENGTH 16
+#define AUTOLENGTH 64
 
 typedef struct poly_Node {
     float coef; //数据域，多项式的coef
@@ -132,7 +132,7 @@ void poly_destory(poly_LinkList L) {
     poly_Node *pre, *p;
     pre = L->next; //初始化pre到链表首位元素
     L->next = NULL; //原头结点指向置空
-    p = pre;
+    p = pre; //初始让p=pre，接着开始循环
     while (pre) { pre = pre->next; free(p); p = pre; } //遍历链表元素并释放空间
     free(L); //释放头结点空间
     //printf("successfully destory a polynominal LinkList.\n");
@@ -140,13 +140,100 @@ void poly_destory(poly_LinkList L) {
 } //删除链表，释放内存
 
 poly_LinkList poly_plus(poly_LinkList A, poly_LinkList B) {
-    if (A == NULL) return B;
-    if (B == NULL) return A;
+    if (A->next == NULL) return B;
+    if (B->next == NULL) return A; //一多项式链表无内容则返回另一多项式链表
     poly_LinkList C = poly_Init(); //创建并初始化链表C
     struct poly_Node *pa, *pb, *pc, *prec;
     pa = A->next; pb = B->next;
     int i = 0, expn;
     float coef;
+    while (pa != NULL && pb != NULL) {
+        if (pa->expn == pb->expn) {
+            coef = pa->coef + pb->coef;
+            expn = pa->expn;
+            pa = pa->next;
+            pb = pb->next;
+            ++i;  if (coef == 0) ++i; //A、B中因相加而合并的（计1）和相加后被消项的（计2）项计数
+        } //A中元素指数和B相同时，此位加和后共同跳过
+        else if (pa->expn > pb->expn) {
+            coef = pa->coef;
+            expn = pa->expn;
+            pa = pa->next;
+        } //A中元素指数比B大时，放入A中元素
+        else {
+            coef = pb->coef;
+            expn = pb->expn;
+            pb = pb->next;
+        } //B中元素指数比A大时，放入B中元素
+        prec = C;
+        if (coef != 0) {
+            pc = (poly_LinkList)malloc(sizeof(poly_Node));
+            if (!pc) { printf("overflow!\n"); /*return;*/ exit(OVERFLOW); }
+            pc->coef = coef;
+            pc->expn = expn;
+            /*
+            pc->next = prec->next; //插入C的头部
+            prec->next = pc;
+            */
+            /*
+            pc->next = NULL;
+            while (prec->next != NULL) prec = prec->next; //插入C的尾部
+            prec->next = pc;
+            */
+            while (prec->next != NULL && pc->expn < prec->next->expn) prec = prec->next;
+            pc->next = prec->next;
+            prec->next = pc; //降幂排列插入C
+        } //若求和后或现有的系数非0，则将元素纳入链表C
+    } //A、B均有元素时，元素按从大到小逐渐插入链表C末尾处
+    while (pa != NULL) {
+        coef = pa->coef;
+        expn = pa->expn;
+        pa = pa->next;
+        prec = C;
+        if (coef != 0) {
+            pc = (poly_LinkList)malloc(sizeof(poly_Node));
+            if (!pc) { printf("overflow!\n"); /*return;*/ exit(OVERFLOW); }
+            pc->coef = coef;
+            pc->expn = expn;
+            /*
+            pc->next = prec->next;
+            prec->next = pc; //插入C的头部
+            */
+            /*
+            pc->next = NULL;
+            while (prec->next != NULL) prec = prec->next; //插入C的尾部
+            prec->next = pc;
+            */
+            while (prec->next != NULL && pc->expn < prec->next->expn) prec = prec->next;
+            pc->next = prec->next;
+            prec->next = pc; //降幂排列插入C
+        }
+    } //经过第一个循环后若剩下A，则继续添加A的元素
+    while (pb != NULL) {
+        coef = pb->coef;
+        expn = pb->expn;
+        pb = pb->next;
+        prec = C;
+        if (coef != 0) {
+            pc = (poly_LinkList)malloc(sizeof(poly_Node));
+            if (!pc) { printf("overflow!\n"); /*return;*/ exit(OVERFLOW); }
+            pc->coef = coef;
+            pc->expn = expn;
+            /*
+            pc->next = prec->next;
+            prec->next = pc; //插入C的头部
+            */
+            /*
+            pc->next = NULL;
+            while (prec->next != NULL) prec = prec->next; //插入C的尾部
+            prec->next = pc;
+            */
+            while (prec->next != NULL && pc->expn < prec->next->expn) prec = prec->next;
+            pc->next = prec->next;
+            prec->next = pc; //降幂排列插入C
+        }
+    } //经过第一个循环后若剩下B，则继续添加B的元素
+    C->expn = A->expn + B->expn - i;
     /*
     //仅合并两个链表并排序，如下
     float swap_coef; int swap_expn;
@@ -190,172 +277,12 @@ poly_LinkList poly_plus(poly_LinkList A, poly_LinkList B) {
         }
     } //给合并后的C表排序
     */
-    while (pa != NULL && pb != NULL) {
-        if (pa->expn == pb->expn) {
-            coef = pa->coef + pb->coef;
-            expn = pa->expn;
-            pa = pa->next;
-            pb = pb->next;
-            ++i;  if (coef == 0) ++i; //A、B中因相加而合并的（计1）和相加后被消项的（计2）项计数
-        } //A中元素指数和B相同时，此位加和后共同跳过
-        else if (pa->expn > pb->expn) {
-            coef = pa->coef;
-            expn = pa->expn;
-            pa = pa->next;
-        } //A中元素指数比B大时，放入A中元素
-        else {
-            coef = pb->coef;
-            expn = pb->expn;
-            pb = pb->next;
-        } //B中元素指数比A大时，放入B中元素
-        prec = C;
-        if (coef != 0) {
-            pc = (poly_LinkList)malloc(sizeof(poly_Node));
-            if (!pc) {
-                printf("overflow!\n");
-                //return;
-                exit(OVERFLOW);
-            }
-            pc->coef = coef;
-            pc->expn = expn;
-            /*
-            pc->next = prec->next; //插入C的头部
-            prec->next = pc;
-            */
-            pc->next = NULL;
-            while (prec->next != NULL) prec = prec->next;
-            prec->next = pc; //插入C的尾部
-        } //若求和后或现有的系数非0，则将元素纳入链表C
-    } //A、B均有元素时，元素按从大到小逐渐插入链表C末尾处
-    while (pa != NULL) {
-        coef = pa->coef;
-        expn = pa->expn;
-        pa = pa->next;
-        prec = C;
-        if (coef != 0) {
-            pc = (poly_LinkList)malloc(sizeof(poly_Node));
-            if (!pc) {
-                printf("overflow!\n");
-                //return;
-                exit(OVERFLOW);
-            }
-            pc->coef = coef;
-            pc->expn = expn;
-            /*
-            pc->next = prec->next;
-            prec->next = pc; //插入C的头部
-            */
-            pc->next = NULL;
-            while (prec->next != NULL) prec = prec->next;
-            prec->next = pc; //插入C的尾部
-        }
-    } //经过第一个循环后若剩下A，则继续添加A的元素
-    while (pb != NULL) {
-        coef = pb->coef;
-        expn = pb->expn;
-        pb = pb->next;
-        prec = C;
-        if (coef != 0) {
-            pc = (poly_LinkList)malloc(sizeof(poly_Node));
-            if (!pc) {
-                printf("overflow!\n");
-                //return;
-                exit(OVERFLOW);
-            }
-            pc->coef = coef;
-            pc->expn = expn;
-            /*
-            pc->next = prec->next;
-            prec->next = pc; //插入C的头部
-            */
-            pc->next = NULL;
-            while (prec->next != NULL) prec = prec->next;
-            prec->next = pc; //插入C的尾部
-        }
-    } //经过第一个循环后若剩下B，则继续添加B的元素
-    C->expn = A->expn + B->expn - i;
-    /*
-    //下方不可用，但暂留
-    while (pa != NULL || pb != NULL) {
-        prec = C;
-        pc1 = (poly_LinkList)malloc(sizeof(poly_Node));
-        if (!pc1) { 
-            printf("overflow!\n");
-            //return;
-            exit(OVERFLOW);
-        }
-        if (pa == NULL && pb != NULL) {
-            pc1 = pb;
-            while (prec->next != NULL && pc1->expn < prec->next->expn) prec = prec->next;
-            if (prec->next != NULL && pc1->expn == prec->next->expn) {
-                prec->next->coef = prec->next->coef + pc1->coef;
-                free(pc1);
-                ++i;
-            } //检查插入元素相对既有元素在降幂排列上是否和前项相同幂，相同则合并（相加）
-            else {
-                pc1->next = prec->next;
-                prec->next = pc1;
-            }
-            pb = pb->next;
-        } //A遍历完，遍历检查插入B的元素
-        else if (pb == NULL && pa != NULL) {
-            pc1 = pa;
-            while (prec->next != NULL && pc1->expn < prec->next->expn) prec = prec->next;
-            if (prec->next != NULL && pc1->expn == prec->next->expn) {
-                prec->next->coef = prec->next->coef + pc1->coef;
-                free(pc1);
-                ++i;
-            }
-            else {
-                pc1->next = prec->next;
-                prec->next = pc1;
-            }
-            pa = pa->next;
-        } //B遍历完，遍历检查、插入A的元素
-        else if (pa != NULL && pb != NULL) {
-            pc2 = (poly_LinkList)malloc(sizeof(poly_Node));
-            if (!pc2) {
-                printf("overflow!\n");
-                //return; 
-                exit(OVERFLOW);
-            }
-            pc1 = pa; pc2 = pb; //一次赋值两个
-            while (prec->next != NULL && (pc1->expn < prec->next->expn || pc2->expn < prec->next->expn)) {
-                if (pc1->expn < prec->next->expn) {
-                    if (pc1->expn == prec->next->expn) {
-                        prec->next->coef = prec->next->coef + pc1->coef; //将相同指数的项相加
-                        free(pc1);
-                        ++i;  //相加的多项式计数
-                    }
-                    else {
-                        pc1->next = prec->next;
-                        prec->next = pc1;
-                    }
-                } //插入pc1
-                else if (pc2->expn < prec->next->expn) {
-                    if (pc2->expn == prec->next->expn) {
-                        prec->next->coef = prec->next->coef + pc2->coef;
-                        free(pc2);
-                        ++i;
-                    }
-                    else {
-                        pc2->next = prec->next;
-                        prec->next = pc2;
-                    }
-                } //插入pc2
-                prec = prec->next;
-            } //找到这两个元素按降幂排列应插入的位置
-            pa = pa->next;
-            pb = pb->next;
-        } //A和B均未遍历完，同时遍历检查、插入A和B两个链表的元素
-    }
-    */
     return C; //返回相加所得的链表C
 }
 
 poly_LinkList poly_minus(poly_LinkList A, poly_LinkList B) {
-    if (A == NULL) return B;
-    if (B == NULL) return A;
+    if (A->next == NULL) return B;
+    if (B->next == NULL) return A;
     poly_LinkList C = poly_Init(); //创建并初始化链表C
     struct poly_Node *pa, *pb, *pc, *prec;
     pa = A->next; pb = B->next;
@@ -385,9 +312,9 @@ poly_LinkList poly_minus(poly_LinkList A, poly_LinkList B) {
             if (!pc) { printf("overflow!\n"); /*return;*/ exit(OVERFLOW); }
             pc->coef = coef;
             pc->expn = expn;
-            pc->next = NULL;
-            while (prec->next != NULL) prec = prec->next;
-            prec->next = pc;
+            while (prec->next != NULL && pc->expn < prec->next->expn) prec = prec->next;
+            pc->next = prec->next;
+            prec->next = pc; //降幂排列插入C
         } //若相减后或现有的系数非0，则将元素纳入链表C
     } //A、B均有元素时
     while (pa != NULL) {
@@ -400,9 +327,9 @@ poly_LinkList poly_minus(poly_LinkList A, poly_LinkList B) {
             if (!pc) { printf("overflow!\n"); /*return;*/ exit(OVERFLOW); }
             pc->coef = coef;
             pc->expn = expn;
-            pc->next = NULL;
-            while (prec->next != NULL) prec = prec->next;
-            prec->next = pc;
+            while (prec->next != NULL && pc->expn < prec->next->expn) prec = prec->next;
+            pc->next = prec->next;
+            prec->next = pc; //降幂排列插入C
         }
     } //经过第一个循环后若剩下A，则继续添加A的元素
     while (pb != NULL) {
@@ -415,9 +342,9 @@ poly_LinkList poly_minus(poly_LinkList A, poly_LinkList B) {
             if (!pc) { printf("overflow!\n"); /*return;*/ exit(OVERFLOW); }
             pc->coef = coef;
             pc->expn = expn;
-            pc->next = NULL;
-            while (prec->next != NULL) prec = prec->next;
-            prec->next = pc;
+            while (prec->next != NULL && pc->expn < prec->next->expn) prec = prec->next;
+            pc->next = prec->next;
+            prec->next = pc; //降幂排列插入C
         }
     } //经过第一个循环后若剩下B，则继续添加B的元素
     C->expn = A->expn + B->expn - i;
@@ -446,68 +373,116 @@ void poly_select(poly_LinkList L, int i) {
     }
     else printf("input number %d is out of polynominal range.\n", i);
     return;
-} //从链表中取值并展示子程序
+} //从链表中取值并展示子程序，需输入取多项式链表中的第几位元素，如果位置无元素则显示超出范围。
 
-void poly_diff(poly_LinkList L) {
+poly_LinkList poly_diff(poly_LinkList L) {
+    struct poly_Node *p, *pre, *pdiff, *prediff;
+    poly_LinkList diffL = poly_Init(); diffL->expn = 0;
+    pre = L;
+    while (pre->next) {
+        prediff = diffL;
+        p = pre->next; //让p为pre的下一位
+        if (p->expn != 0) {
+            pdiff = (poly_LinkList)malloc(sizeof(poly_Node));
+            if (!pdiff) { printf("overflow!\n"); /*return;*/ exit(OVERFLOW); }
+            pdiff->coef = p->expn * p->coef;
+            pdiff->expn = p->expn - 1;
+            while (prediff->next != NULL && pdiff->expn < prediff->next->expn) prediff = prediff->next;
+            pdiff->next = prediff->next;
+            prediff->next = pdiff; //降幂排列插入C
+            diffL->expn = diffL->expn + 1;
+        } //指数不为0正常求导，新系数=指数*老系数，新指数=指数-1
+        //else { pre->next = p->next; free(p); } //指数为0项则不加入新多项式（因为其为常数，求导后是0）
+        pre = pre->next; //下移
+    } //遍历链表
+    return diffL;
+} //多项式求导子函数，输入参数为要求导的多项式链表，输出为求导所得新多项式链表
 
-}
+poly_LinkList poly_multi(poly_LinkList A, poly_LinkList B) {
+    struct poly_Node *pa, *pb, *pc, *prec;
+    poly_LinkList C = poly_Init(); C->expn = 0;
+    if (A->next == NULL || B->next == NULL) return C; //如果AB任一无元素，为0，则立即返回C，此时C无值（看作乘积为0）
+    else {
+        pa = A->next; //初始化到链表A首位
+        while (pa != NULL) {
+            pb = B->next; //每次循环pa时B回到首位
+            while (pb != NULL) {
+                prec = C;
+                pc = (poly_LinkList)malloc(sizeof(poly_Node));
+                if (!pc) { printf("overflow!\n"); /*return;*/ exit(OVERFLOW); }
+                pc->coef = pa->coef * pb->coef; //系数相乘
+                pc->expn = pa->expn + pb->expn; //指数相加
+                while (prec->next != NULL && pc->expn < prec->next->expn) prec = prec->next; //降幂排列位置
+                if (prec->next != NULL && pc->expn == prec->next->expn) {
+                    prec->next->coef = prec->next->coef + pc->coef; //相同指数项合并
+                    free(pc);
+                } //幂相等，则系数相加合并两元素到prec->next->coef内，释放pc
+                else {
+                    pc->next = prec->next;
+                    prec->next = pc; //插入到降幂位置
+                    C->expn = C->expn + 1;
+                }
+                pb = pb->next; //B下移（但每次A循环B刷新回始位）
+            }
+            pa = pa->next; //A下移，直到A循环完毕
+        }
+    }
+    return C;
+} //多项式相乘子程序
 
 void main() {
-    poly_LinkList ListA, ListB, AplusB, AminusB/*, BminusA*/;
+    poly_LinkList ListA, ListB, AplusB, AmultiB,diffBminusdiffA;
     ListA = poly_Init(); ListB = poly_Init(); //初始化链表
     int i=1;
     char in_name[AUTOLENGTH], out_name[AUTOLENGTH];
     printf("input 1st file:");
     scanf_s("%s", &in_name, AUTOLENGTH);
-    poly_readfile(in_name, ListA); //指定文件读取其内容并产生链表A
+    poly_readfile(in_name, ListA); //读取指定文件并将内容存至指定链表
 
     printf("\ninput 2nd file:");
     scanf_s("%s", &in_name, AUTOLENGTH);
     poly_readfile(in_name, ListB);
 
+    AplusB = poly_plus(ListA, ListB); //将多项式链表A、B相加得到链表AplusB
+    AmultiB = poly_multi(ListA, ListB); //将多项式链表A、B相乘得到链表AmultiB
+    diffBminusdiffA = poly_minus(poly_diff(ListB), poly_diff(ListA)); //将多项式B的导减去多项式A的导，输出为diffBminusdiffA
+
     printf("\noutput 1st file:");
     scanf_s("%s", &out_name, AUTOLENGTH);
-    poly_writefile(out_name, ListA); //输出链表A内容到指定文件
-
+    poly_writefile(out_name, ListA); //输出指定链表内容到指定文件
+    
     printf("\noutput 2nd file:");
     scanf_s("%s", &out_name, AUTOLENGTH);
     poly_writefile(out_name, ListB);
-
+    
     printf("\noutput 1st+2nd file:");
     scanf_s("%s", &out_name, AUTOLENGTH);
-    AplusB = poly_plus(ListA, ListB); //将链表A、B多项式相加得到链表AplusB
     poly_writefile(out_name, AplusB);
 
-    printf("\noutput 1st-2nd file:");
+    printf("\noutput 1st*2nd file:");
     scanf_s("%s", &out_name, AUTOLENGTH);
-    AminusB = poly_minus(ListA, ListB); //将链表A多项式减去链表B多项式得到链表AminusB
-    poly_writefile(out_name, AminusB);
+    poly_writefile(out_name, AmultiB);
     
-    /*
-    printf("\noutput 2nd-1st file:");
+    printf("\noutput diff(2nd)-diff(1st)] file:");
     scanf_s("%s", &out_name, AUTOLENGTH);
-    BminusA = poly_minus(ListB, ListA); //将链表B多项式减去链表A多项式得到链表BminusA
-    poly_writefile(out_name, BminusA);
-    */
+    poly_writefile(out_name, diffBminusdiffA);
 
+    //下面为自动输出，取值函数的使用
     printf("\nat 1st poly LinkList:\n");
-    for (int i = 1; i <= ListA->expn; i++) poly_select(ListA, i); //展示链表A所有元素
     poly_select(ListA, 1);
     poly_select(ListA, 0);
     poly_select(ListA, 2);
     poly_select(ListA, -2);
     poly_select(ListA, 8);
-    poly_select(ListA, 7); //展示链表A特定位置元素
+    poly_select(ListA, 7); //链表A特定位置元素取值
 
     printf("\nat 1st+2nd poly LinkList:\n");
-    for (int i = 1; i <= AplusB->expn; i++) poly_select(AplusB, i); //展示链表A+B后的所有元素
-    poly_select(AplusB, -5);
-    poly_select(AplusB, 7);
-    poly_select(AplusB, 3); //展示链表A+B后特定位置元素
+    for (int i = 1; i <= AplusB->expn; i++) poly_select(AplusB, i); //链表A+B后的所有元素取值展示
 
-    poly_destory(ListA); poly_destory(ListB);
+    poly_destory(ListA);
+    poly_destory(ListB);
     poly_destory(AplusB);
-    poly_destory(AminusB);
-    //poly_destory(BminusA); //删除链表
+    poly_destory(AmultiB);
+    poly_destory(diffBminusdiffA); //删除链表
     return;
 } //主函数
