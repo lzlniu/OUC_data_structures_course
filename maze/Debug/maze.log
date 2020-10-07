@@ -1,0 +1,4 @@
+﻿  源.c
+F:\Develop\lzlniu_github\OUC_data_structures_course\maze\源.c(164,8): warning C4033: “savemaze”必须返回值
+F:\Develop\lzlniu_github\OUC_data_structures_course\maze\源.c(165): warning C4715: “savemaze”: 不是所有的控件路径都返回值
+  maze.vcxproj -> F:\Develop\lzlniu_github\OUC_data_structures_course\maze\Debug\maze.exe

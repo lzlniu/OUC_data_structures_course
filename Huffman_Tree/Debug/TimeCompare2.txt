@@ -1,0 +1,8 @@
+ShortStory.txt Huffman coding time:69 ms
+ShortStory.txt Huffman decoding time:29 ms
+ShortStory.txt binary-ASCII coding time:111 ms
+ShortStory.txt binary-ASCII decoding time:38 ms
+LongStory.txt Huffman coding time:736 ms
+LongStory.txt Huffman decoding time:285 ms
+LongStory.txt binary-ASCII coding time:1163 ms
+LongStory.txt binary-ASCII decoding time:382 ms

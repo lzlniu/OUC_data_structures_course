@@ -1,0 +1,273 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#define SQUARE 32 //迷宫最大行列数
+#define MAXSTACKSIZE 512 //栈存储最大值
+#define STACK_INIT_SIZE 512 //栈初始化大小
+#define STACK_INCREASE_SIZE 8 //栈增加大小
+#define ERROR 0
+#define OK 1
+
+struct pos { 
+	int x, y;
+}; //坐标
+
+struct node {
+	//int no; //元素序号
+	struct pos p; //坐标信息
+	int dir;  //方向，1右,2下,3左,4上
+}; //结点
+
+struct maze {
+	int r, c;
+	char m[SQUARE + 2][SQUARE + 2]; //0表示通路,1表示墙壁,2表示已走过的路径
+	struct pos s; //起点位置信息
+	struct pos e; //终点位置信息
+}; //迷宫结构
+
+struct stack {
+	struct node* base; //栈底
+	struct node* top; //栈顶
+	int size; //栈元素数
+}; //栈结构
+
+int stack_init(struct stack S) {
+	S.base = (struct node*)malloc(STACK_INIT_SIZE * sizeof(struct node));
+	if (!S.base) { printf("overflow during stack init\n"); return ERROR; /*exit(0);*/ }
+	S.top = S.base;
+	S.size = STACK_INIT_SIZE;
+	return OK;
+} //栈初始化
+
+void stack_destory(struct stack S) {
+	free(S.base);
+	S.base = NULL;
+	S.top = NULL;
+	S.size = 0;
+	return;
+} //栈删除
+
+int stack_len(struct stack S) {
+	return S.top - S.base;
+}
+
+int stack_push(struct stack S, struct node e) {
+	struct node* tmp;
+	if (S.base != NULL && (S.top - S.base) >= S.size) {
+		tmp = (struct node*)realloc(S.base,(S.size + STACK_INCREASE_SIZE) * sizeof(struct node));
+		if (tmp != NULL) S.base = tmp;
+		free(S.base);
+		if (!S.base) { printf("overflow during stack push\n"); /*exit(0);*/ return ERROR; }
+		S.top = S.base + S.size;
+		S.size += STACK_INCREASE_SIZE;
+	}
+	*S.top = e;
+	S.top++;
+	return OK;
+} //指定元素e（element）入栈S
+
+struct node stack_pop(struct stack S) {
+	struct node popnode; //此非指针，而是node结构，记录出栈元素信息
+	if (S.top == S.base) {
+		printf("this maze have no path！\n");
+		popnode.dir = 5; //标记popnode方向为5（“不可能方向”）
+		return popnode;
+	} //栈已无元素，迷宫无法走通
+	popnode = *--S.top;
+	return popnode;
+} //指定栈顶元素e出栈S
+
+/*
+void stack_show_recursion (struct node* node, int i) { //此处参数是元素指针而非具体元素
+	if (!node) return; //指向位置无元素才终止递归（唯一出口）
+	stack_show_recursion(node->no, --i); //递归向当前元素前一个元素（向栈内深入）
+	char c[3]; memset(c, 0, 3);
+	if (node->dir == 1) strcpy(c, "→");
+	else if (node->dir == 2) strcpy(c, "↓");
+	else if (node->dir == 3) strcpy(c, "←");
+	else if (node->dir == 4) strcpy(c, "↑");
+	printf("%d\t%d\t%d\t%s\n", i, node->p.x, node->p.y, c);
+} //栈元素递归，展示迷宫路径的每一步
+
+void stack_show(struct stack* S) {
+	char c[3]; memset(c, 0, 3);
+	printf("act\tline\trow\tdirection\n");
+	while (S->base->no>0) {
+		if (S->base->dir == 1) strcpy(c, "→");
+		else if (S->base->dir == 2) strcpy(c, "↓");
+		else if (S->base->dir == 3) strcpy(c, "←");
+		else if (S->base->dir == 4) strcpy(c, "↑");
+		printf("%d\t%d\t%d\t%s\n", S->base->no, S->base->p.x, S->base->p.y, c);
+		memset(c, 0, 3);
+		S->base->no = S->base->no - 1;
+	}
+	//stack_show_recursion(S->base, S->size + 1); //递归由栈base元素开始
+} //栈元素显示（与栈元素递归子函数必须一起用）
+*/
+void dispmaze(struct maze* a_maze) {
+	int i, j;
+	printf("□route  █wall  ╋ start  ⊙end  ╳ can't through\n");
+	for (i = 0; i <= a_maze->r + 1; i++) {
+		for (j = 0; j <= a_maze->c + 1; j++) {
+			if (i == a_maze->s.x && j == a_maze->s.y) printf("╋ "); //起点
+			else if (i == a_maze->e.x && j == a_maze->e.y) printf("⊙"); //终点
+			else {
+				if (a_maze->m[i][j] == '0') printf("□");
+				if (a_maze->m[i][j] == '1') printf("█");
+				if (a_maze->m[i][j] == '2') printf("╳ ");
+				if (a_maze->m[i][j] == 'A') printf("→");
+				if (a_maze->m[i][j] == 'B') printf("↓");
+				if (a_maze->m[i][j] == 'C') printf("←");
+				if (a_maze->m[i][j] == 'D') printf("↑");
+				if (a_maze->m[i][j] == 'I') printf("┌ "); //┏┌改为◤则是全角，或加空格
+				if (a_maze->m[i][j] == 'F') printf("┐ "); //┓┐改为◥则是全角，或加空格
+				if (a_maze->m[i][j] == 'G') printf("┘ "); //┛┘改为◢则是全角，或加空格
+				if (a_maze->m[i][j] == 'H') printf("└ "); //┗└改为◣则是全角，或加空格
+			}
+		}
+		printf("\n");
+	}
+	return;
+}
+
+int inputmaze(struct maze* a_maze, char* mazefile) {
+	int i, j;
+	char row[SQUARE + 10];
+	FILE* fp;
+	int s, e;//有无起点和终点
+	s = 0, e = 0;
+	fopen_s(&fp, mazefile, "r");
+	if (!fp) {
+		printf("can't open %s\n", mazefile);
+		return ERROR;
+	}
+	fscanf_s(fp, "%d,%d", &(a_maze->r), &(a_maze->c)); //迷宫限定长宽储存于r、c，此信息在迷宫输入中位于第一行以%d,%d形式写
+	fgetc(fp); //读取换行符
+	for (i = 0; i < a_maze->r + 2; i++)
+		for (j = 0; j < a_maze->c + 2; j++)
+			a_maze->m[i][j] = '1';//先全部填充为1（1代表墙壁）
+	for (i = 1; i <= a_maze->r; i++) { //跳过迷宫输入第一行的迷宫边界
+		fgets(row, SQUARE + 10, fp); //从fp中整行读取
+		for (j = 1; j <= a_maze->c; j++) { //跳过第一列的迷宫边界
+			a_maze->m[i][j] = row[j - 1]; //逐列录入该行迷宫位点情况（墙或路或起点或终点）
+			if (a_maze->m[i][j] == 'S') {
+				a_maze->s.x = i;
+				a_maze->s.y = j;
+				s = 1;
+			} //起点被标记为S，录入其位置到s
+			else if (a_maze->m[i][j] == 'E') {
+				a_maze->e.x = i;
+				a_maze->e.y = j;
+				e = 1;
+			} //终点被标记为E，录入其位置到e
+		}
+	}
+	fclose(fp);
+	if (s + e < 2) {
+		printf("can't find start or end pos of this maze %s\n", mazefile);
+		return ERROR;
+	}
+	return OK;
+} //输入迷宫
+
+void findpath(struct maze* a_maze) {
+
+}
+
+void drawpath(struct maze* a_maze) {
+	struct stack st;
+	int x, y, dir, lastdir;
+	int px, py;
+	struct node n;
+	//n.no = 0;
+	struct stack* s = &st;
+	x = a_maze->s.x;
+	y = a_maze->s.y;
+	dir = 1; //初始方向为1
+	stack_init(st);
+	while (a_maze->m[x][y] != 'E') {
+		if (a_maze->m[x][y + 1] == '0' || a_maze->m[x][y + 1] == 'E') {
+			if (a_maze->m[x][y + 1] == '0') a_maze->m[x][y + 1] = '2';
+			n.dir = 1;
+			n.p.x = x;
+			n.p.y = y;
+			y += 1;
+			stack_push(*s, n);
+		}
+		else if (a_maze->m[x + 1][y] == '0' || a_maze->m[x + 1][y] == 'E') {
+			if (a_maze->m[x + 1][y] == '0') a_maze->m[x + 1][y] = '2';
+			n.dir = 2;
+			n.p.x = x;
+			n.p.y = y;
+			x += 1;
+			stack_push(*s, n);
+		}
+		else if (a_maze->m[x][y - 1] == '0' || a_maze->m[x][y - 1] == 'E') {
+			if (a_maze->m[x][y - 1] == '0') a_maze->m[x][y - 1] = '2';
+			n.dir = 3;
+			n.p.x = x;
+			n.p.y = y;
+			y -= 1;
+			stack_push(*s, n);
+		}
+		else if (a_maze->m[x - 1][y] == '0' || a_maze->m[x - 1][y] == 'E') {
+			if (a_maze->m[x - 1][y] == '0') a_maze->m[x - 1][y] = '2';
+			n.dir = 4;
+			n.p.x = x;
+			n.p.y = y;
+			x -= 1;
+			stack_push(*s, n);
+		}
+		else {
+			n = stack_pop(*s);
+			if (n.dir == 5) return; //方向为“不可能方向”5，退出
+			x = n.p.x;
+			y = n.p.y;
+		}
+	}
+	//stack_show(s);
+	n = stack_pop(*s); //此时栈顶为终点，终点出栈
+	x = n.p.x;
+	y = n.p.y;
+	dir = n.dir;
+	while (s->size != 0) { //方向（dir），1右,2下,3左,4上
+		n = stack_pop(*s); //路径点逐个出栈
+		px = n.p.x;
+		py = n.p.y;
+		lastdir = n.dir;
+		if (lastdir == 1 && dir == 1) a_maze->m[x][y] = 'A';      //上个方向向右，本方向向右，为→
+		else if (lastdir == 1 && dir == 2) a_maze->m[x][y] = 'F'; //上个方向向右，本方向向下，为┐
+		else if (lastdir == 1 && dir == 4) a_maze->m[x][y] = 'G'; //上个方向向右，本方向向上，为┘
+		else if (lastdir == 2 && dir == 1) a_maze->m[x][y] = 'H'; //上个方向向下，本方向向右，为└
+		else if (lastdir == 2 && dir == 2) a_maze->m[x][y] = 'B'; //上个方向向下，本方向向下，为↓
+		else if (lastdir == 2 && dir == 3) a_maze->m[x][y] = 'G'; //上个方向向下，本方向向左，为┘
+		else if (lastdir == 3 && dir == 2) a_maze->m[x][y] = 'I'; //上个方向向左，本方向向下，为┌
+		else if (lastdir == 3 && dir == 3) a_maze->m[x][y] = 'C'; //上个方向向左，本方向向左，为←
+		else if (lastdir == 3 && dir == 4) a_maze->m[x][y] = 'H'; //上个方向向左，本方向向上，为└
+		else if (lastdir == 4 && dir == 1) a_maze->m[x][y] = 'I'; //上个方向向上，本方向向右，为┌
+		else if (lastdir == 4 && dir == 3) a_maze->m[x][y] = 'F'; //上个方向向上，本方向向左，为┐
+		else if (lastdir == 4 && dir == 4) a_maze->m[x][y] = 'D'; //上个方向向上，本方向向上，为↑
+		x = px;
+		y = py;
+		dir = lastdir;
+	}
+	a_maze->m[a_maze->s.x][a_maze->s.y] = 'S';
+	a_maze->m[a_maze->e.x][a_maze->e.y] = 'E';
+	stack_destory(*s);
+	return;
+} //迷宫路径
+
+void main() {
+	struct maze* maze1 = (struct maze*)malloc(MAXSTACKSIZE * sizeof(struct maze)); //初始化
+	if (inputmaze(maze1, "maze1.txt") == OK) {
+		if (maze1 != NULL) printf("maze size:%d×%d\n", maze1->r, maze1->c);
+		dispmaze(maze1);
+		printf("maze path:\n");
+		drawpath(maze1);
+		dispmaze(maze1);
+		char c = getchar();
+	}
+	return;
+}
